@@ -6,9 +6,14 @@
 # explainable-self-adaptive-forecasting
 > A tool for interpreting & unlocking the inner workings of time-series forecasting.
 
-<video width="960" height="540" controls>
-  <source src="assets/EASF.mp4" type="video/mp4">
-</video>
+<figure class="large">
+    <div class="myvideo">
+       <video  style="display:block; width:100%; height:auto;" autoplay controls loop="loop">
+           <source src="/assets/EASF.mp4" type="video/mp4" />
+       </video>
+    </div>
+<figcaption>Tool Overview</figcaption>
+</figure>
 
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](contributing.md)
 [![CodeBuild](https://s3-us-west-2.amazonaws.com/codefactory-us-west-2-prod-default-build-badges/passing.svg)](https://s3-us-west-2.amazonaws.com/codefactory-us-west-2-prod-default-build-badges/passing.svg)
@@ -68,11 +73,11 @@ A design of embedded self-attention signals learning accumulated local effects w
 
 A novel approach for use cases where:
 
-- [x] accumulated local effects [which grow over time] shall not be disregarded or attributed to noise
-- [x] non-stationarity is a known factor [explicitly modelled as part of the null hypothesis]
+- [x] accumulated local effects (which grow over time) shall not be disregarded or attributed to noise
+- [x] non-stationarity is a known factor (thus explicitly required to be modelled as part of the null hypothesis)
 - [x] group-level effects shall not be lost within the overall predictive distribution
-- [x] missing data [large gaps] shall not compromise the learning of a progressive underlying process
-- [x] the best target realisation [univariately built multi-step projection] carries a high degree of predictability
+- [x] missing data (large gaps) shall not compromise the learning of a progressive underlying process
+- [x] the predictor’s best realisation shall not be compromised by the overall predictive distribution
 
 **Neural Forecasting**
  
