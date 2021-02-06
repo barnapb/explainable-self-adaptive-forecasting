@@ -6,14 +6,7 @@
 # explainable-self-adaptive-forecasting
 > A tool for interpreting & unlocking the inner workings of time-series forecasting.
 
-<figure class="large">
-    <div class="myvideo">
-       <video  style="display:block; width:100%; height:auto;" autoplay controls loop="loop">
-           <source src="/assets/EASF.mp4" type="video/mp4" />
-       </video>
-    </div>
-<figcaption>Tool Overview</figcaption>
-</figure>
+<video src="/assets/EASF.mp4" width="640" height="360" controls preload></video>
 
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](contributing.md)
 [![CodeBuild](https://s3-us-west-2.amazonaws.com/codefactory-us-west-2-prod-default-build-badges/passing.svg)](https://s3-us-west-2.amazonaws.com/codefactory-us-west-2-prod-default-build-badges/passing.svg)
