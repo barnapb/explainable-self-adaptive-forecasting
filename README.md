@@ -1,13 +1,14 @@
-<br /><br /><br />
-<p align="center">
-  <img width="256" src="assets/logo.gif" alt="cat gif"/>
-</p><br /><br />
-
 # explainable-self-adaptive-forecasting
 > A tool for interpreting & unlocking the inner workings of time-series forecasting.
 
-
-[![](http://img.youtube.com/vi/Yx6Kpkfvluk/0.jpg)](http://www.youtube.com/watch?v=Yx6Kpkfvluk "Explainable & Self-Adaptive Forecasting")
+<div align="left">
+      <a href="http://www.youtube.com/watch?v=Yx6Kpkfvluk">
+     <img
+      src="assets/logo_img.png" 
+      alt="Tool Overview" 
+      style="width:35%;">
+      </a>
+</div>
 
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](contributing.md)
 [![CodeBuild](https://s3-us-west-2.amazonaws.com/codefactory-us-west-2-prod-default-build-badges/passing.svg)](https://s3-us-west-2.amazonaws.com/codefactory-us-west-2-prod-default-build-badges/passing.svg)
@@ -56,14 +57,16 @@ For more context into where and how to use the tool, please read the `Narrative`
 
 **Model interpretability**
  
-Explaining feature importance and accumulated local effects, using SHAP, a game theoretic approach to explain the output of any machine learning model.
-By using the XGBoost surrogate model to compute the full SHAP values, the user would be able to run a comprehensive set of analysis and understand both global and local contributions for each sample-prediction pair.
-By capturing tensors while training (gradients and weights distributions), a complete understanding is achieved on how the network performs and how to tune it accordingly.
+The first task is to generate a pipeline to explain feature importance and accumulated local effects, using SHAP, while enabling a set of visualisations abstracted from classical notebooks, but instead hosting a dashboard which retrieves and displays the information in real time.
+
+With a need for using a surrogate model to approximate the predictions of the underlying neural model as accurately as possible and to be interpretable at the same time, the tree-based modules with the popular variant of gradient boosted trees is often the right choice to compute the full SHAP values. This would enable a comprehensive set of analysis, including global interpretation methods like feature importance, feature dependence, interactions, clustering and summary plots or local interpretability where each feature value is a ‘force’ that either increases or decreases the prediction.
+
+By capturing tensors while training the core neural model (incl. gradients and weights distributions), a complete understanding is achieved on how the network performs with further insights into how to tune it accordingly. 
 
 **Self-Adaptive Covariates**
 
 
-A design of embedded self-attention signals learning accumulated local effects which grow over time, group level effects, as well as improving the target’s best realisation.
+A design of embedded self-attention signals which learn accumulated local effects which grow over time, group level effects, as well as significantly improve the predictor’s best realisation. 
 
 A novel approach for use cases where:
 
@@ -76,6 +79,7 @@ A novel approach for use cases where:
 **Neural Forecasting**
  
 A state-of-the-art Autoregressive Recurrent Network for multi-step forecasts of multiple-related time series. [DeepAR].
+
 A neural approach for use cases where:
 
 - [x] interested in the full predictive distribution, not just the single best realisation
@@ -153,19 +157,18 @@ Name                         | Default value | Type          |Description
 ## 📟 Example
 
 You can find an example dataset `Air_Pollution_in_Seoul.csv`. It can be used to explore the tool, or as reference for preparing your own dataset.
-<br/>
 
-#### The example dataset has the followng structure:
-
-**Time Stamp Column** | **Pivot Colum** | **Feature Columns**
-
-For more details into how to prepare your dataset, please refer to the manual dcoumentation.
-Once the app is launched , these fields can be populated accordingly within the Configuration Menu.
 
 <p align="center">
   <img width="417" height="177", src="assets/example.png" />
 </p>
 
+The dataset has the followng structure:
+
+**Time Stamp Column** | **Pivot Colum** | **Feature Columns**
+
+For more details into how to prepare your dataset, please refer to the `Manual` dcoumentation.
+Once the app is launched , these fields can be populated accordingly within the Configuration Menu.
 
 ## 👀 See also
 
