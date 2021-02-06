@@ -6,7 +6,7 @@
      <img
       src="assets/logo_img.png" 
       alt="Tool Overview" 
-      style="width:35%;">
+      width="545" height="560">
       </a>
 </div>
 
