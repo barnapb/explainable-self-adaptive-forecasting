@@ -1,0 +1,52 @@
+{
+  "author": "Paul Barna <barnapb@amazon.com>",
+  "block": {
+    "type": "architecture",
+    "audience": [
+      "Applied Scientists", 
+      "Research Scientists", 
+      "Data Scientists", 
+      "ML Scientists", 
+      "ML Specialists"
+    ],
+    "deploymentTime": 20,
+    "releases": [
+      {
+        "version": "1.0.0",
+        "date": "2021-01-22T19:00:00+01:00",
+        "notes": [
+          {
+            "text": "Initial version release of the `explainable-self-adaptive-forecasting` package."
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": {
+    "url": "https://issues.amazon.com/issues/create?assignedFolder=c8ad2f41-12e1-4a21-81d4-5d8fd0835837"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "🔧 A feature engineering serverless application, generating enhanced related-timeseries covariates.",
+  "homepage": "https://aws-blocks.io/package.html?name=@aws-blocks/explainable-self-adaptive-forecasting",
+  "keywords": [
+    "machine-learning",
+    "sagemaker",
+    "serverless",
+    "forecasting"
+  ],
+  "license": "ASL",
+  "name": "@aws-blocks/explainable-self-adaptive-forecasting",
+  "repository": {
+    "type": "git",
+    "url": "https://git-codecommit.us-west-2.amazonaws.com/v1/repos/explainable-self-adaptive-forecasting"
+  },
+  "scripts": {
+    "deploy": "npm run postinstall && bash deploy.sh ${npm_config_stack_name} ${npm_config_ecr_repository} ${npm_config_dashboard_ecr_repository} ${npm_config_region} ${npm_config_bucket_backend} ${npm_config_dashboard_name} ${npm_config_email}",
+    "build":"bash build.sh ${npm_config_stack_name} ${npm_config_ecr_repository} ${npm_config_region} ${npm_config_bucket_backend}",
+    "postinstall": "sam build --template-file cloudformation.yml",
+    "build_dashboard":"bash dashboard.sh ${npm_config_dashboard_ecr_repository}",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "version": "1.0.0"
+}

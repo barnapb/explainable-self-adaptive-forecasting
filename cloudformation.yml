@@ -1,0 +1,658 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  The backend for the Explainable and Self-Adaptive Forecasting tool
+
+# Metadata associated with this stack.
+Metadata:
+
+  # Cloudformation interface for parameters.
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+
+      # General parameters label.
+      - Label:
+          default: General Parameters
+        Parameters:
+          - Environment
+
+    # Labels for the above parameters.
+    ParameterLabels:
+      Environment:
+        default: Environment name
+      PreProcessingImageURI:
+        default: PreProcessing Image URI
+
+# Parameters exposed by this template.
+Parameters:
+
+  # General parameters.
+  Environment:
+    Type: String
+    Description: >
+      The environment name on which you would like to deploy the project.
+      This identifier will be used to tag created resources.
+    Default: development
+    MinLength: 1
+    ConstraintDescription: The environment cannot be empty.
+  PreProcessingImageURI:
+    Type: String
+    Description: >
+      URI of PreProcessing Image on Amazon ECR.
+    MinLength: 1
+    AllowedPattern: ".*.dkr.ecr..*.amazonaws.com/.*$"
+    ConstraintDescription: The Pre-processing Image URI cannot be empty. Please set an URI in this account & region.
+
+# Lambda layers mapping 
+# DeepAR image registry path 
+Mappings: 
+  LayersMapping: 
+    eu-west-1: 
+      Name: arn:aws:lambda:eu-west-1:399891621064:layer:AWSLambda-Python37-SciPy1x:22
+    us-east-1: 
+      Name: arn:aws:lambda:us-east-1:668099181075:layer:AWSLambda-Python37-SciPy1x:22
+    us-east-2: 
+      Name: arn:aws:lambda:us-east-2:259788987135:layer:AWSLambda-Python37-SciPy1x:20
+    us-west-1: 
+      Name: arn:aws:lambda:us-west-1:325793726646:layer:AWSLambda-Python37-SciPy1x:22
+    us-west-2: 
+      Name: arn:aws:lambda:us-west-2:420165488524:layer:AWSLambda-Python37-SciPy1x:20
+    ap-south-1: 
+      Name: arn:aws:lambda:ap-south-1:631267018583:layer:AWSLambda-Python37-SciPy1x:20
+    ap-northeast-2: 
+      Name: arn:aws:lambda:ap-northeast-2:296580773974:layer:AWSLambda-Python37-SciPy1x:20
+    ap-southeast-1: 
+      Name: arn:aws:lambda:ap-southeast-1:468957933125:layer:AWSLambda-Python37-SciPy1x:22
+    ap-southeast-2: 
+      Name: arn:aws:lambda:ap-southeast-2:817496625479:layer:AWSLambda-Python37-SciPy1x:20
+    ap-northeast-1: 
+      Name: arn:aws:lambda:ap-northeast-1:249908578461:layer:AWSLambda-Python37-SciPy1x:23
+    ca-central-1: 
+      Name: arn:aws:lambda:ca-central-1:778625758767:layer:AWSLambda-Python37-SciPy1x:19
+    eu-central-1: 
+      Name: arn:aws:lambda:eu-central-1:292169987271:layer:AWSLambda-Python37-SciPy1x:20
+    eu-west-2: 
+      Name: arn:aws:lambda:eu-west-2:142628438157:layer:AWSLambda-Python37-SciPy1x:20
+    eu-west-3: 
+      Name: arn:aws:lambda:eu-west-3:959311844005:layer:AWSLambda-Python37-SciPy1x:20
+    eu-north-1: 
+      Name: arn:aws:lambda:eu-north-1:642425348156:layer:AWSLambda-Python37-SciPy1x:20
+    sa-east-1: 
+      Name: arn:aws:lambda:sa-east-1:640010853179:layer:AWSLambda-Python37-SciPy1x:20
+
+  DeepARMapping: 
+    us-west-1:
+      Name: 632365934929.dkr.ecr.us-west-1.amazonaws.com/forecasting-deepar:latest
+    us-west-2:
+      Name: 156387875391.dkr.ecr.us-west-2.amazonaws.com/forecasting-deepar:latest
+    us-east-1:
+      Name: 522234722520.dkr.ecr.us-east-1.amazonaws.com/forecasting-deepar:latest
+    us-east-2:
+      Name: 566113047672.dkr.ecr.us-east-2.amazonaws.com/forecasting-deepar:latest
+    ap-east-1:
+      Name: 286214385809.dkr.ecr.ap-east-1.amazonaws.com/forecasting-deepar:latest
+    ap-northeast-1:
+      Name: 633353088612.dkr.ecr.ap-northeast-1.amazonaws.com/forecasting-deepar:latest
+    ap-northeast-2:
+      Name: 204372634319.dkr.ecr.ap-northeast-2.amazonaws.com/forecasting-deepar:latest
+    ap-south-1:
+      Name: 991648021394.dkr.ecr.ap-south-1.amazonaws.com/forecasting-deepar:latest
+    ap-southeast-1:
+      Name: 475088953585.dkr.ecr.ap-southeast-1.amazonaws.com/forecasting-deepar:latest
+    ap-southeast-2:
+      Name: 514117268639.dkr.ecr.ap-southeast-2.amazonaws.com/forecasting-deepar:latest
+    ca-central-1:
+      Name: 469771592824.dkr.ecr.ca-central-1.amazonaws.com/forecasting-deepar:latest
+    cn-north-1:
+      Name: 390948362332.dkr.ecr.cn-north-1.amazonaws.com.cn/forecasting-deepar:latest
+    cn-northwest-1:
+      Name: 387376663083.dkr.ecr.cn-northwest-1.amazonaws.com.cn/forecasting-deepar:latest
+    eu-north-1:
+      Name: 669576153137.dkr.ecr.eu-north-1.amazonaws.com/forecasting-deepar:latest
+    eu-central-1:
+      Name: 495149712605.dkr.ecr.eu-central-1.amazonaws.com/forecasting-deepar:latest
+    eu-west-1:
+      Name: 224300973850.dkr.ecr.eu-west-1.amazonaws.com/forecasting-deepar:latest
+    eu-west-2:
+      Name: 644912444149.dkr.ecr.eu-west-2.amazonaws.com/forecasting-deepar:latest
+    eu-west-3:
+      Name: 749696950732.dkr.ecr.eu-west-3.amazonaws.com/forecasting-deepar:latest
+    me-south-1:
+      Name: 249704162688.dkr.ecr.me-south-1.amazonaws.com/forecasting-deepar:latest
+    sa-east-1:
+      Name: 855470959533.dkr.ecr.sa-east-1.amazonaws.com/forecasting-deepar:latest
+    us-gov-west-1:
+      Name: 226302683700.dkr.ecr.us-gov-west-1.amazonaws.com/forecasting-deepar:latest
+
+  MXNetMapping:
+    us-east-1:
+      Name: 763104351884.dkr.ecr.us-east-1.amazonaws.com/mxnet-training:1.6.0-cpu-py3
+    us-east-2:
+      Name: 763104351884.dkr.ecr.us-east-2.amazonaws.com/mxnet-training:1.6.0-cpu-py3
+    us-west-1:
+      Name: 763104351884.dkr.ecr.us-west-1.amazonaws.com/mxnet-training:1.6.0-cpu-py3
+    us-west-2:
+      Name: 763104351884.dkr.ecr.us-west-2.amazonaws.com/mxnet-training:1.6.0-cpu-py3
+    af-south-1:
+      Name: 626614931356.dkr.ecr.af-south-1.amazonaws.com/mxnet-training:1.6.0-cpu-py3
+    ap-east-1:
+      Name: 871362719292.dkr.ecr.ap-east-1.amazonaws.com/mxnet-training:1.6.0-cpu-py3
+    ap-south-1:
+      Name: 763104351884.dkr.ecr.ap-south-1.amazonaws.com/mxnet-training:1.6.0-cpu-py3
+    ap-northeast-2:
+      Name: 763104351884.dkr.ecr.ap-northeast-2.amazonaws.com/mxnet-training:1.6.0-cpu-py3
+    ap-southeast-1:
+      Name: 763104351884.dkr.ecr.ap-southeast-1.amazonaws.com/mxnet-training:1.6.0-cpu-py3
+    ap-southeast-2:
+      Name: 763104351884.dkr.ecr.ap-southeast-2.amazonaws.com/mxnet-training:1.6.0-cpu-py3
+    ap-northeast-1:
+      Name: 763104351884.dkr.ecr.ap-northeast-1.amazonaws.com/mxnet-training:1.6.0-cpu-py3
+    ca-central-1:
+      Name: 763104351884.dkr.ecr.ca-central-1.amazonaws.com/mxnet-training:1.6.0-cpu-py3
+    eu-central-1:
+      Name: 763104351884.dkr.ecr.eu-central-1.amazonaws.com/mxnet-training:1.6.0-cpu-py3
+    eu-west-1:
+      Name: 763104351884.dkr.ecr.eu-west-1.amazonaws.com/mxnet-training:1.6.0-cpu-py3
+    eu-west-2:
+      Name: 763104351884.dkr.ecr.eu-west-2.amazonaws.com/mxnet-training:1.6.0-cpu-py3
+    eu-south-1:
+      Name: 692866216735.dkr.ecr.eu-south-1.amazonaws.com/mxnet-training:1.6.0-cpu-py3
+    eu-west-3:
+      Name: 763104351884.dkr.ecr.eu-west-3.amazonaws.com/mxnet-training:1.6.0-cpu-py3
+    eu-north-1:
+      Name: 763104351884.dkr.ecr.eu-north-1.amazonaws.com/mxnet-training:1.6.0-cpu-py3
+    me-south-1:
+      Name: 217643126080.dkr.ecr.me-south-1.amazonaws.com/mxnet-training:1.6.0-cpu-py3
+    sa-east-1:
+      Name: 763104351884.dkr.ecr.sa-east-1.amazonaws.com/mxnet-training:1.6.0-cpu-py3
+    cn-north-1:
+      Name: 727897471807.dkr.ecr.cn-north-1.amazonaws.com.cn/mxnet-training:1.6.0-cpu-py3
+    cn-northwest-1:
+      Name: 727897471807.dkr.ecr.cn-northwest-1.amazonaws.com.cn/mxnet-training:1.6.0-cpu-py3
+
+# Parameters exposed by this template.
+Resources:
+  # IAM Role associated with the `QueryTrainingStatusLambdaRole` function.
+  QueryTrainingStatusLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com 
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SagemakerDescribeModelAccessPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sagemaker:DescribeModel
+                  - sagemaker:DescribeTrainingJob
+                  - sagemaker:ListModels
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Ref "AWS::StackName"
+        - Key: Environment
+          Value: !Ref Environment
+
+   # IAM Role associated with the `UtilityLambdaRole` function.
+  UtilityLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com 
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SagemakerStepFunctionAccessPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - states:ListExecutions
+                  - states:StartExecution
+                  - states:DescribeExecution
+                  - states:GetExecutionHistory
+                  - states:StopExecution
+                  - sagemaker:ListTrainingJobs
+                  - sagemaker:DescribeTrainingJob
+                  - sagemaker:ListEndpoints
+                  - sagemaker:DeleteEndpoint
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Ref "AWS::StackName"
+        - Key: Environment
+          Value: !Ref Environment
+
+
+  # IAM Role associated with the `DeepARPredictLambdaRole` function.
+  DeepARPredictLambdaRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: Lambda does not know which S3 will be used in advance
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com 
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: AmazonS3FullAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:PutObjectAcl
+                  - s3:ListBucket
+                Resource: '*'
+        - PolicyName: SagemakerInvokationAccessPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sagemaker:InvokeEndpoint
+                  - sagemaker:DescribeEndpoint
+                  - sagemaker:ListEndpoints
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Ref "AWS::StackName"
+        - Key: Environment
+          Value: !Ref Environment
+
+  # IAM Role associated with the `BestModelArnLambdaRole` function.
+  BestModelArnLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com 
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Tags:
+        - Key: Name
+          Value: !Ref "AWS::StackName"
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Customer Managed Policy to Provide Access to CW Logs
+  AmazonSagemakerCWAccessPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - cloudwatch:PutMetricData
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - logs:CreateLogGroup
+              - logs:DescribeLogStreams
+            Resource: '*'
+
+  # Customer Managed Policy to Provide Access to Amazon ECR
+  AmazonSagemakerAmazonECRAccessPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - ecr:GetAuthorizationToken
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - ecr:BatchCheckLayerAvailability
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+            Resource: 
+              - !Sub 'arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/*'
+  
+  # Customer Managed Policy to Provide Access to VPC
+  AmazonSagemakerVPCAccessPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - ec2:CreateNetworkInterface
+              - ec2:CreateNetworkInterfacePermission
+              - ec2:DeleteNetworkInterface
+              - ec2:DeleteNetworkInterfacePermission
+              - ec2:DescribeNetworkInterfaces
+              - ec2:DescribeVpcs
+              - ec2:DescribeDhcpOptions
+              - ec2:DescribeSubnets
+              - ec2:DescribeSecurityGroups
+            Resource: '*'
+
+  
+  StatsmodelsCustomLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: statsmodels-python37
+      Description: >
+        Statsmodels and skit-learn libraries
+      ContentUri: layers/statsmodels.zip
+      CompatibleRuntimes:
+        - python3.7
+      LicenseInfo: 'Available under the MIT-0 license.'
+      RetentionPolicy: Retain
+
+  # Get the best model arn Lambda
+  BestModelArnLambda:
+    Type: AWS::Serverless::Function
+    Properties: 
+      CodeUri: lambdas/get-best-model-arn
+      Description: >
+        Get the best model arn 
+      Handler: index.lambda_handler
+      Role: !GetAtt BestModelArnLambdaRole.Arn
+      Runtime: python3.7
+      Timeout: 15
+      MemorySize: 128
+      Tags: 
+        Name: !Ref "AWS::StackName"
+        Environment: !Ref Environment
+
+  # Query Training Status Lambda
+  QueryTrainingStatusLambda:
+    Type: AWS::Serverless::Function
+    Properties: 
+      CodeUri: lambdas/query-training-status
+      Description: >
+        Query Training Status
+      Handler: index.lambda_handler
+      Role: !GetAtt QueryTrainingStatusLambdaRole.Arn
+      Runtime: python3.7
+      Timeout: 15
+      MemorySize: 128
+      Tags: 
+        Name: !Ref "AWS::StackName"
+        Environment: !Ref Environment
+
+
+  # Dasboard utility lambda
+  UtilityLambda:
+    Type: AWS::Serverless::Function
+    Properties: 
+      CodeUri: lambdas/utility-lambda
+      Description: >
+        Dasboard utility
+      Handler: index.lambda_handler
+      Role: !GetAtt UtilityLambdaRole.Arn
+      Runtime: python3.7
+      Timeout: 15
+      MemorySize: 128
+      Environment:
+        Variables:
+          SF_EXECUTION_ARN: ""
+          STATE_MACHINE_NAME: !Ref EASFStateMachine
+      Tags:   
+        Name: !Ref "AWS::StackName"
+        Environment: !Ref Environment
+
+
+ # Serves DeepAR predictions Lambda
+  DeepARPredictLambda:
+    Type: AWS::Serverless::Function
+    Properties: 
+      CodeUri: lambdas/deepar-predict
+      Description: >
+        Serves DeepAR predictions
+      Handler: index.lambda_handler
+      Role: !GetAtt DeepARPredictLambdaRole.Arn
+      Runtime: python3.7
+      Timeout: 900
+      MemorySize: 1024
+      Layers:
+        - !FindInMap [ LayersMapping, !Ref "AWS::Region", Name]
+        - !Ref StatsmodelsCustomLayer
+      Tags: 
+        Name: !Ref "AWS::StackName"
+        Environment: !Ref Environment
+
+
+  # An SNS topic on which operating failures will be sent.
+  FailureNotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties: 
+      Tags:
+        - Key: Name
+          Value: !Ref "AWS::StackName"
+        - Key: Environment
+          Value: !Ref Environment
+
+  # IAM Role associated with the Sagemaker Service Integrations in `EASFStateMachine` state machine.
+  SagemakerEASFExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - sagemaker.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns: 
+        - !Ref AmazonSagemakerCWAccessPolicy
+        - !Ref AmazonSagemakerAmazonECRAccessPolicy
+        - !Ref AmazonSagemakerVPCAccessPolicy
+      Policies:
+        - PolicyName: AmazonSagemakerExecutionRolePolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource: 
+                  - 'arn:aws:s3:::*'
+      Tags:
+        - Key: Name
+          Value: !Ref "AWS::StackName"
+        - Key: Environment
+          Value: !Ref Environment
+
+  # The IAM role associated with the `EASFStateMachineRole`.
+  EASFStateMachineRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: State Machine requires all resources to access cloudwatch, SageMaker and s3
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - states.amazonaws.com 
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: SageMakerFullSuiteAccessPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sagemaker:*
+                Resource:
+                  - !Sub 'arn:aws:sagemaker:${AWS::Region}:${AWS::AccountId}:*'
+              - Effect: Allow
+                Action:
+                  - events:PutTargets
+                  - events:PutRule
+                  - events:DescribeRule
+                Resource:
+                  - !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/*'
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource:
+                  - !GetAtt SagemakerEASFExecutionRole.Arn
+                Condition:
+                  StringEquals:
+                    iam:PassedToService:
+                        - sagemaker.amazonaws.com
+        - PolicyName: LambdaInvokeScopedAccessPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !GetAtt BestModelArnLambda.Arn
+                  - !GetAtt QueryTrainingStatusLambda.Arn
+        - PolicyName: SnsPublishScopedAccessPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource:
+                  - !Ref FailureNotificationTopic
+        - PolicyName: CloudWatchLogsDeliveryFullAccessPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogDelivery
+                  - logs:GetLogDelivery
+                  - logs:UpdateLogDelivery
+                  - logs:DeleteLogDelivery
+                  - logs:ListLogDeliveries
+                  - logs:PutResourcePolicy
+                  - logs:DescribeResourcePolicies
+                  - logs:DescribeLogGroups
+                Resource: '*'
+        - PolicyName: AmazonS3FullAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:PutObjectAcl
+                  - s3:ListBucket
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Ref "AWS::StackName"
+        - Key: Environment
+          Value: !Ref Environment
+
+  # AWS Step Functions CW Log Group.
+  EASFStateMachineCWLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: 
+      LogGroupName: EASFStateMachineCWLogGroup
+      RetentionInDays: 60
+  
+  # The EASF state machine.
+  EASFStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionSubstitutions:
+        StackName: !Ref "AWS::StackName"
+        Environment: !Ref Environment
+        SagemakerEASFExecutionRoleArn: !GetAtt SagemakerEASFExecutionRole.Arn
+        QueryTrainingStatusLambdaArn: !GetAtt QueryTrainingStatusLambda.Arn
+        BestModelArnLambdaArn: !GetAtt BestModelArnLambda.Arn
+        FailureNotificationTopicArn: !Ref FailureNotificationTopic
+        DeepARimageURI: !FindInMap [DeepARMapping, !Ref "AWS::Region", Name]
+        MXNETimageURI: !FindInMap [MXNetMapping, !Ref "AWS::Region", Name]
+        PPimageURI: !Ref PreProcessingImageURI
+      DefinitionUri: state-machines/easf-pipeline.json
+      Logging:
+        Destinations: 
+          - CloudWatchLogsLogGroup: 
+              LogGroupArn: !GetAtt EASFStateMachineCWLogGroup.Arn
+        IncludeExecutionData: true
+        Level: "ALL"
+      Name: EASFStateMachine
+      Role: !GetAtt EASFStateMachineRole.Arn
+      Tags: 
+        Name: !Ref "AWS::StackName"
+        Environment: !Ref Environment
+      Type: STANDARD
+
+# The outputs to be generated by this template.
+Outputs:
+  Name:
+    Description: >
+      Step Function Stack Name.
+    Value: !Ref AWS::StackName
+    Export:
+      Name: !Sub ${AWS::StackName}-Name
+  FailureNotificationTopicName:
+    Description: >
+      Failed Notification Topic Name.
+    Value: !GetAtt FailureNotificationTopic.TopicName
+    Export:
+      Name: !Sub ${AWS::StackName}-FailureNotificationTopicName
+  EASFStateMachineArn:
+    Description: >
+      ARN for the EASF State Machine.
+    Value: !Ref EASFStateMachine
+    Export:
+      Name: !Sub ${AWS::StackName}-EASFStateMachineArn
+  UtilityLambdaArn:
+    Description: >
+      ARN for the utility lambda.
+    Value: !Ref UtilityLambda
+    Export:
+      Name: !Sub ${AWS::StackName}-UtilityLambdaArn
+  DeepARPredictLambdaArn:
+    Description: >
+      ARN for the serving lambda.
+    Value: !Ref DeepARPredictLambda
+    Export:
+      Name: !Sub ${AWS::StackName}-DeepARPredictLambdaArn
+

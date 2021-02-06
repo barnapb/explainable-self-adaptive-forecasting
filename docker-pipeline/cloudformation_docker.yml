@@ -1,0 +1,907 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Creates a pipeline that builds and publishes your Docker
+  containers to AWS ECR and AWS ECS.
+
+# Metadata associated with this stack.
+Metadata:
+
+  # Cloudformation interface for parameters.
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+
+      # General parameters label.
+      - Label:
+          default: General Parameters
+        Parameters:
+          - Environment
+          - ProjectTag
+          - UntaggedRetentionNumber
+
+      # Source parameters label.
+      - Label:
+          default: Source Parameters
+        Parameters:
+          - SourceType
+          - MonitorSource
+          - RepositoryName
+          - RepositoryBranch
+          - RepositoryOwner
+          - OAuthToken
+          - RepositoryBucket
+          - RepositoryObjectKey
+
+      # Build parameters label.
+      - Label:
+          default: Build Parameters
+        Parameters:
+          - ComputeType
+          - BuildTimeout
+          - ArtifactExpiration
+  
+      # Deploy to S3 parameters label.
+      - Label:
+          default: Deploy to S3 Parameters
+        Parameters:
+          - EnableS3Deployment
+          - S3DestinationBucket
+          - S3DestinationPath
+
+      # Deploy to ECS parameters label.
+      - Label:
+          default: Deploy to ECS Parameters
+        Parameters:
+          - EnableECSDeployment
+          - ECSCluster
+          - ECSService
+          - ECSContainerName
+
+      # Invoke Lambda Function parameters label.
+      - Label:
+          default: Lambda Invocation Parameters
+        Parameters:
+          - EnableLambdaInvokation
+          - FunctionName
+      
+      # Start a Step function parameters label.
+      - Label:
+          default: Step Function Invocation Parameters
+        Parameters:
+          - EnableStepFunctionInvokation
+          - StateMachineArn
+
+    # Labels for the above parameters.
+    ParameterLabels:
+      Environment:
+        default: Environment name
+      ProjectTag:
+        default: Project Tag
+      UntaggedRetentionNumber:
+        default: Untagged Images Retention Number
+      RepositoryNameECR:
+        default: ECR repository name
+      SourceType:
+        default: Type of the source code repository
+      MonitorSource:
+        default: Monitor the source ?
+      RepositoryName:
+        default: Repository Name
+      RepositoryBranch:
+        default: Repository Branch
+      RepositoryOwner:
+        default: Repository Owner
+      OAuthToken:
+        default: OAuth Token
+      RepositoryBucket:
+        default: Repository Bucket
+      RepositoryObjectKey:
+        default: Repository Object Key
+      ComputeType:
+        default: Compute Type
+      BuildTimeout:
+        default: Build Timeout in Minutes
+      ArtifactExpiration:
+        default: Artifact Expiration In Days
+      EnableS3Deployment:
+        default: Enable Deployment to S3 ?
+      S3DestinationBucket:
+        default: S3 Destination Bucket
+      S3DestinationPath:
+        default: S3 Destination Object Key
+      EnableECSDeployment:
+        default: Enable Deployment to AWS ECS ?
+      ECSCluster:
+        default: ECS Cluster to deploy the image to
+      ECSService:
+        default: ECS Service to deploy the image to
+      ECSContainerName:
+        default: ECS Container name
+      EnableLambdaInvokation:
+        default: Enable User Lambda invokation ?
+      FunctionName:
+        default: Function name
+      EnableStepFunctionInvokation:
+        default: Enable Step Function invokation ?
+      StateMachineArn:
+        default: State Machine ARN
+
+# Parameters exposed by this template.
+Parameters:
+
+  # General parameters.
+  Environment:
+    Type: String
+    Description: >
+      The environment name on which you would like to deploy the project.
+      This identifier will be used to tag created resources.
+    Default: development
+    MinLength: 1
+    ConstraintDescription: The environment cannot be empty.
+  ProjectTag:
+    Type: String
+    Description: >
+      Defines the project tag that will be used to register the Docker image.
+    Default: latest
+    MinLength: 1
+  UntaggedRetentionNumber:
+    Type: Number
+    Description: >
+      A number defining the maximum amount of untagged images to keep
+      in the Elastic Container Registry.
+    Default: 5
+  RepositoryNameECR:
+    Type: String
+    Description: >
+      The name of the ECR repository.
+    Default: ""
+
+  # Source parameters.
+  SourceType:
+    Type: String
+    Description: >
+      Describes the type of repository that contains the source code to be built.
+    AllowedValues:
+      - CodeCommit
+      - S3
+      - GitHub
+    Default: CodeCommit
+  MonitorSource:
+    Type: String
+    Description: >
+      Whether enable events that monitors the selected source in order to automatically
+      trigger the code pipeline upon a source change.
+    AllowedValues:
+      - true
+      - false
+    Default: true
+  RepositoryName:
+    Type: String
+    Description: >
+      (CodeCommit and GitHub) - Represents the name of the repository when using CodeCommit or
+      GitHub as a `SourceType`.
+    Default: ""
+  RepositoryBranch:
+    Type: String
+    Description: >
+      (CodeCommit and GitHub) - Represents the name of the branch you want to pull from the source
+      repository when using CodeCommit or GitHub as a `SourceType`.
+    Default: master
+  RepositoryOwner:
+    Type: String
+    Description: >
+      (GitHub Only) - Represents the name of the GitHub user or organization who owns the
+      GitHub repository when using GitHub as a `SourceType`.
+    Default: ""
+  OAuthToken:
+    Type: String
+    NoEcho: true
+    Description: >
+      (GitHub Only) - Represents the OAuthToken to use to pull a Github repository when
+      using GitHub as a `SourceType`.
+    Default: ""
+  RepositoryBucket:
+    Type: String
+    Description: >
+      (S3 Only) - Represents the name of the S3 Bucket containing the `.zip` file
+      that holds your source code when using S3 as a `SourceType`.
+    Default: ""
+  RepositoryObjectKey:
+    Type: String
+    Description: >
+      (S3 Only) - Represents the key of the `.zip` file that holds your source code
+      in the `RepositoryBucket` you specified when using S3 as a `SourceType`.
+    Default: code.zip
+    
+  # Build parameters.
+  ComputeType:
+    Type: String
+    Description: >
+      The type of compute environment. This determines the number of CPU cores and memory the build environment uses.
+    AllowedValues:
+      - BUILD_GENERAL1_SMALL
+      - BUILD_GENERAL1_MEDIUM
+      - BUILD_GENERAL1_LARGE
+    Default: BUILD_GENERAL1_SMALL
+  BuildTimeout:
+    Type: Number
+    Description: >
+      The timeout associated with the build of the Docker image in minutes.
+    Default: 30
+  ArtifactExpiration:
+    Type: Number
+    Description: >
+      The amount of days that the artifacts resulting from a Docker build will be persisted
+      on the S3 artifact bucket.
+    Default: 30
+  
+  # S3 Deployment parameters.
+  EnableS3Deployment:
+    Type: String
+    Description: >
+      Whether to enable automated deployment of the build artifacts to an S3 Bucket.
+    AllowedValues:
+      - true
+      - false
+    Default: false
+  S3DestinationBucket:
+    Type: String
+    Description: >
+      The destination S3 Bucket name that will contain the resulting artifacts.
+    Default: ""
+  S3DestinationPath:
+    Type: String
+    Description: >
+      An optional S3 Bucket path that will contain the resulting artifacts.
+    Default: ""
+
+  # ECS Deployment parameters.
+  EnableECSDeployment:
+    Type: String
+    Description: >
+      Whether to enable automated deployment of the build artifacts to AWS ECS.
+    AllowedValues:
+      - true
+      - false
+    Default: false
+  ECSCluster:
+    Type: String
+    Description: >
+      The name of the ECS cluster on which the resulting Docker image should be deployed.
+    Default: ""
+  ECSService:
+    Type: String
+    Description: >
+      The name of the ECS service in the selected cluster on which the resulting Docker image should be deployed.
+    Default: ""
+  ECSContainerName:
+    Type: String
+    Description: >
+      The name of the container in ECS to which the new built Docker image will be pushed.
+    Default: ""
+
+  # Lambda Invocation parameters.
+  EnableLambdaInvokation:
+    Type: String
+    Description: >
+      Whether to enable invokation of a Lambda function as a deploy action.
+    AllowedValues:
+      - true
+      - false
+    Default: false
+  FunctionName:
+    Type: String
+    Description: >
+      The name of Lambda function which will invoked with the build artifacts as parameters.
+    Default: ""
+
+  # Step Function Invocation parameters.
+  EnableStepFunctionInvokation:
+    Type: String
+    Description: >
+      Whether to enable invokation of a Step Function as a deploy action.
+    AllowedValues:
+      - true
+      - false
+    Default: false
+  StateMachineArn:
+    Type: String
+    Description: >
+      The Amazon Resource Name (ARN) for the state machine to be invoked.
+    Default: ""
+
+# Instance mappings.
+Mappings:
+  SourceOwnerMap:
+    GitHub:
+      Owner: ThirdParty
+    S3:
+      Owner: AWS
+    CodeCommit:
+      Owner: AWS
+
+# Conditions declared in this template.
+Conditions:
+  SourceMonitored: !Equals [!Ref MonitorSource, true]
+  SourceCodeCommit: !Equals [!Ref SourceType, CodeCommit]
+  SourceCodeCommitMonitored: !And [{ Condition: SourceCodeCommit }, { Condition: SourceMonitored }]
+  SourceGitHub: !Equals [!Ref SourceType, GitHub]
+  SourceGitHubMonitored: !And [{ Condition: SourceGitHub }, { Condition: SourceMonitored }]
+  SourceS3: !Equals [!Ref SourceType, S3]
+  DeployToS3: !Equals [!Ref EnableS3Deployment, true]
+  HasS3DestinationPath: !Not [!Equals [!Ref S3DestinationPath, ""]]
+  DeployToECS: !Equals [!Ref EnableECSDeployment, true]
+  InvokeLambda: !Equals [!Ref EnableLambdaInvokation, true]
+  InvokeStepFunction: !Equals [!Ref EnableStepFunctionInvokation, true]
+
+# Description of the resources to be created.
+Resources:
+
+  ######################################################
+  ###                                                ###
+  ###               General Resources                ###
+  ###                                                ###
+  ###   Declaration of the CloudFormation resources  ###
+  ###  representing general resources for the build. ###
+  ###                                                ###
+  ######################################################
+
+  # An S3 Bucket that will hold the resulting artifacts
+  # from the build.
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - ExpirationInDays: !Ref ArtifactExpiration
+            Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  # The ECR Repository to create that will hold the
+  # built Docker images.
+  EcrRepository:
+    Type: AWS::ECR::Repository
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Properties:
+      RepositoryName: !Ref RepositoryNameECR
+      LifecyclePolicy:
+        LifecyclePolicyText: !Sub |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Keep only the defined amount of untagged images, expire all the others.",
+                "selection": {
+                    "tagStatus": "untagged",
+                    "countType": "imageCountMoreThan",
+                    "countNumber": ${UntaggedRetentionNumber}
+                },
+                "action": {
+                  "type": "expire"
+                }
+              }
+            ]
+          }
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Stack
+          Value: !Ref AWS::StackName
+        - Key: Context
+          Value: docker-pipeline
+
+  # The IAM role associated with the CodeBuild project.
+  BuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: !Sub build-role-${AWS::StackName}
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:GetObjectVersion
+                Resource: !Sub arn:${AWS::Partition}:s3:::${ArtifactBucket}/*
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:PutImage
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+                Resource: !GetAtt EcrRepository.Arn
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Stack
+          Value: !Ref AWS::StackName
+        - Key: Context
+          Value: docker-pipeline
+
+  # The IAM role associated with the CodePipeline.
+  PipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          Effect: Allow
+          Principal:
+            Service: codepipeline.amazonaws.com
+          Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: !Sub pipeline-role-${AWS::StackName}
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetBucketVersioning
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:GetObjectPolicy
+                  - s3:PutObject
+                Resource:
+                  - !Sub arn:${AWS::Partition}:s3:::${ArtifactBucket}
+                  - !Sub arn:${AWS::Partition}:s3:::${ArtifactBucket}/*
+              - !If
+                  - SourceS3
+                  - Effect: Allow
+                    Action:
+                      - s3:ListBucket
+                      - s3:GetBucketVersioning
+                      - s3:GetObject
+                      - s3:GetObjectVersion
+                      - s3:GetObjectPolicy
+                    Resource:
+                      - !Sub arn:${AWS::Partition}:s3:::${RepositoryBucket}
+                      - !Sub arn:${AWS::Partition}:s3:::${RepositoryBucket}/*
+                  - !Ref AWS::NoValue
+              - !If
+                  - SourceCodeCommit
+                  - Effect: Allow
+                    Action:
+                      - codecommit:ListBranches
+                      - codecommit:ListRepositories
+                      - codecommit:BatchGetRepositories
+                      - codecommit:Get*
+                      - codecommit:GitPull
+                      - codecommit:UploadArchive
+                      - codecommit:CancelUploadArchive
+                    Resource:
+                      - !Sub arn:${AWS::Partition}:codecommit:${AWS::Region}:${AWS::AccountId}:${RepositoryName}
+                  - !Ref AWS::NoValue
+              - Effect: Allow
+                Action:
+                  - codebuild:StartBuild
+                  - codebuild:BatchGetBuilds
+                Resource:
+                  - !Sub arn:${AWS::Partition}:codebuild:${AWS::Region}:${AWS::AccountId}:project/codebuild-${AWS::StackName}
+              - !If
+                - DeployToECS
+                - Effect: Allow
+                  Action:
+                    - ecs:DescribeServices
+                    - ecs:DescribeTaskDefinition
+                    - ecs:DescribeTasks
+                    - ecs:ListTasks
+                    - ecs:RegisterTaskDefinition
+                    - ecs:UpdateService
+                    - iam:PassRole
+                  Resource: "*"
+                - !Ref AWS::NoValue
+              - !If
+                - DeployToS3
+                - Effect: Allow
+                  Action:
+                    - s3:PutObject
+                  Resource:
+                    - !Sub arn:${AWS::Partition}:s3:::${S3DestinationBucket}/*
+                - !Ref AWS::NoValue
+              - !If
+                - InvokeLambda
+                - Effect: Allow
+                  Action:
+                    - lambda:InvokeFunction
+                  Resource:
+                    - !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${FunctionName}
+                - !Ref AWS::NoValue
+              - !If
+                - InvokeStepFunction
+                - Effect: Allow
+                  Action:
+                    - states:StartExecution
+                    - states:DescribeStateMachine
+                  Resource:
+                    - !Ref StateMachineArn
+                - !Ref AWS::NoValue
+              - !If
+                - InvokeStepFunction
+                - Effect: Allow
+                  Action:
+                    - states:DescribeExecution
+                  Resource:
+                    - !Sub arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:execution:*
+                - !Ref AWS::NoValue
+
+  ######################################################
+  ###                                                ###
+  ###             Docker Build Resources             ###
+  ###                                                ###
+  ###   Declaration of the CloudFormation resources  ###
+  ###      specific to the Docker build process.     ###
+  ###                                                ###
+  ######################################################
+
+  # Definition of the CodeBuild project to be created
+  # to build Docker images.
+  BuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub codebuild-${AWS::StackName}
+      Description: >
+        A CodeBuild project generated by the `docker-pipeline` component to build Docker images.
+      ServiceRole: !Ref BuildRole
+      TimeoutInMinutes: !Ref BuildTimeout
+      Artifacts:
+        Type: CODEPIPELINE
+      Cache:
+        Type: LOCAL
+        Modes:
+          - LOCAL_SOURCE_CACHE
+          - LOCAL_DOCKER_LAYER_CACHE
+      Environment:
+        ComputeType: !Ref ComputeType
+        Image: aws/codebuild/standard:2.0
+        Type: LINUX_CONTAINER
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: ECR_REPOSITORY
+            Value: !Ref EcrRepository
+          - Name: TAG_NAME
+            Value: !Sub "${EcrRepository}:${ProjectTag}"
+          - Name: CONTAINER_NAME
+            Value: !Ref ECSContainerName
+          - Name: CONTAINER_FILE
+            Value: !Sub "${EcrRepository}-${ProjectTag}.tar"
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: !Sub |
+          version: 0.2
+          phases:
+            install:
+              runtime-versions:
+                docker: 18
+            pre_build:
+              commands:
+                - $(aws ecr get-login --no-include-email)
+                - export ECR_URL=$(echo ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/$TAG_NAME)
+            build:
+              commands:
+                - docker build -t $ECR_REPOSITORY .
+                - docker tag $TAG_NAME $ECR_URL
+            post_build:
+              commands:
+                - docker push $ECR_URL
+                - docker save $TAG_NAME --output $CONTAINER_FILE
+                - echo Writing image definitions file...
+                - printf '[{"name":"%s","imageUri":"%s"}]' "$CONTAINER_NAME" "$ECR_URL" > imagedefinitions.json
+                - printf '{"ImageURI":"%s"}' $ECR_URL > imageDetail.json
+          artifacts:
+            files:
+              - imagedefinitions.json
+              - imageDetail.json
+              - $CONTAINER_FILE
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Stack
+          Value: !Ref AWS::StackName
+        - Key: Context
+          Value: docker-pipeline
+
+  # The CodePipeline associated with the Docker
+  # build process.
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn: !GetAtt PipelineRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactBucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: Source
+              ActionTypeId:
+                Category: Source
+                Version: "1"
+                Owner: !FindInMap [SourceOwnerMap, !Ref SourceType, Owner]
+                Provider: !Ref SourceType
+              Configuration: !If
+                - SourceCodeCommit
+                - RepositoryName: !Ref RepositoryName
+                  BranchName: !Ref RepositoryBranch
+                  PollForSourceChanges: false
+                - !If
+                  - SourceS3
+                  - S3Bucket: !Ref RepositoryBucket
+                    S3ObjectKey: !Ref RepositoryObjectKey
+                    PollForSourceChanges: !If [SourceMonitored, true, false]
+                  - !If
+                    - SourceGitHub
+                    - Owner: !Ref RepositoryOwner
+                      Repo: !Ref RepositoryName
+                      Branch: !Ref RepositoryBranch
+                      PollForSourceChanges: false
+                      OAuthToken: !Ref OAuthToken
+                    - !Ref AWS::NoValue
+              OutputArtifacts:
+                - Name: Source
+              RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Version: "1"
+                Owner: AWS
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref BuildProject
+              InputArtifacts:
+                - Name: Source
+              OutputArtifacts:
+                - Name: BuildOutput
+              RunOrder: 1
+        - !If
+          - DeployToS3
+          - Name: DeployToS3
+            Actions:
+              - Name: Deploy
+                ActionTypeId:
+                  Category: Deploy
+                  Owner: AWS
+                  Version: "1"
+                  Provider: S3
+                Configuration:
+                  BucketName: !Ref S3DestinationBucket
+                  ObjectKey: !If [HasS3DestinationPath, !Ref S3DestinationPath, !Ref "AWS::NoValue"]
+                  Extract: true
+                InputArtifacts:
+                  - Name: BuildOutput
+                RunOrder: 1
+          - !Ref AWS::NoValue
+        - !If
+          - DeployToECS
+          - Name: DeployToECS
+            Actions:
+              - Name: Deploy
+                ActionTypeId:
+                  Category: Deploy
+                  Owner: AWS
+                  Version: "1"
+                  Provider: ECS
+                Configuration:
+                  ClusterName: !Ref ECSCluster
+                  ServiceName: !Ref ECSService
+                  FileName: imagedefinitions.json
+                InputArtifacts:
+                  - Name: BuildOutput
+                RunOrder: 2
+          - !Ref AWS::NoValue
+        - !If
+          - InvokeLambda
+          - Name: InvokeLambda
+            Actions:
+              - Name: InvokeLambda
+                ActionTypeId:
+                  Category: Invoke
+                  Owner: AWS
+                  Version: "1"
+                  Provider: Lambda
+                Configuration:
+                  FunctionName: !Ref FunctionName
+                InputArtifacts:
+                  - Name: BuildOutput
+                RunOrder: 3
+          - !Ref AWS::NoValue
+        - !If
+          - InvokeStepFunction
+          - Name: InvokeStepFunction
+            Actions:
+              - Name: InvokeStepFunction
+                ActionTypeId:
+                  Category: Invoke
+                  Owner: AWS
+                  Version: "1"
+                  Provider: StepFunctions
+                Configuration:
+                  StateMachineArn: !Ref StateMachineArn
+                  InputType: FilePath
+                  Input: imagedefinitions.json
+                InputArtifacts:
+                  - Name: BuildOutput
+                RunOrder: 4
+          - !Ref AWS::NoValue
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Stack
+          Value: !Ref AWS::StackName
+        - Key: Context
+          Value: docker-pipeline
+
+  ######################################################
+  ###                                                ###
+  ###          Source Monitoring Resources           ###
+  ###                                                ###
+  ###   Declaration of the CloudFormation resources  ###
+  ###    specific to the source monitoring process.  ###
+  ###                                                ###
+  ######################################################
+
+  # A WebHook automatically created when the source is
+  # located on GitHub.
+  GithubWebHook:
+    Type: AWS::CodePipeline::Webhook
+    Condition: SourceGitHubMonitored
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: F69
+            reason: >
+              The `OAuthToken` parameter is provided with a blank default value as it is optional and does not contain any credential.
+    Properties:
+      Authentication: GITHUB_HMAC
+      AuthenticationConfiguration:
+        SecretToken: !Ref OAuthToken
+      RegisterWithThirdParty: true
+      Filters:
+        - JsonPath: "$.ref"
+          MatchEquals: refs/heads/{Branch}
+      TargetPipeline: !Ref Pipeline
+      TargetAction: Source
+      TargetPipelineVersion: !GetAtt Pipeline.Version
+
+  # An IAM role which allows AWS CloudWatch Events to trigger
+  # the code pipeline when the source is an AWS CodeCommit
+  # repository and monitoring is enabled.
+  AmazonCloudWatchEventRole:
+    Type: AWS::IAM::Role
+    Condition: SourceCodeCommitMonitored
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: !Sub events-execution-${AWS::StackName}
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: codepipeline:StartPipelineExecution
+                Resource: !Sub arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${Pipeline}
+
+  # A CloudWatch Events rule that triggers the code pipeline
+  # when the source is an AWS CodeCommit repository, monitoring
+  # is enabled, and the repository has been updated.
+  AmazonCloudWatchEventRule:
+    Type: AWS::Events::Rule
+    Condition: SourceCodeCommitMonitored
+    Properties:
+      EventPattern:
+        source:
+          - aws.codecommit
+        detail-type:
+          - 'CodeCommit Repository State Change'
+        resources:
+          - !Sub arn:${AWS::Partition}:codecommit:${AWS::Region}:${AWS::AccountId}:${RepositoryName}
+        detail:
+          event:
+            - referenceCreated
+            - referenceUpdated
+          referenceType:
+            - branch
+          referenceName:
+            - !Ref RepositoryBranch
+      Targets:
+        - Arn: !Sub arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${Pipeline}
+          RoleArn: !GetAtt AmazonCloudWatchEventRole.Arn
+          Id: docker-pipeline-rule
+
+# The outputs to be generated by this template.
+Outputs:
+  Name:
+    Description: >
+      Docker Build Stack Name.
+    Value: !Ref AWS::StackName
+    Export:
+      Name: !Sub ${AWS::StackName}-Name
+  ArtifactBucketName:
+    Description: >
+      The name of S3 Bucket used to store build artifacts.
+    Value: !Ref ArtifactBucket
+    Export:
+      Name: !Sub ${AWS::StackName}-ArtifactBucketName
+  BuildProjectName:
+    Description: >
+      The name of the CodeBuild project used to build
+      Docker images.
+    Value: !Ref BuildProject
+    Export:
+      Name: !Sub ${AWS::StackName}-BuildProjectName
+  PipelineName:
+    Description: >
+      The name of the created AWS CodePipeline.
+    Value: !Ref Pipeline
+    Export:
+      Name: !Sub ${AWS::StackName}-PipelineName
+  PipelineVersion:
+    Description: >
+      The version of the AWS CodePipeline.
+    Value: !GetAtt Pipeline.Version
+    Export:
+      Name: !Sub ${AWS::StackName}-PipelineVersion
+  EcrRepositoryName:
+    Description: >
+      The name of the ECR Repository that will contain the built Docker images.
+    Value: !Ref EcrRepository
+    Export:
+      Name: !Sub ${AWS::StackName}-EcrRepositoryName
+  EcrRepositoryArn:
+    Description: >
+      The ARN of the ECR Repository that will contain the built Docker images.
+    Value: !GetAtt EcrRepository.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-EcrRepositoryArn
+  ImageUri:
+    Description: >
+      The URI to the resulting image on ECR.
+    Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${EcrRepository}:${ProjectTag}
+    Export:
+      Name: !Sub ${AWS::StackName}-ImageUri
+  GitHubWebHookUrl:
+    Condition: SourceGitHubMonitored
+    Description: >
+      The URL of the created GitHub Webhook.
+    Value: !GetAtt GithubWebHook.Url
+    Export:
+      Name: !Sub ${AWS::StackName}-GitHubWebHookUrl

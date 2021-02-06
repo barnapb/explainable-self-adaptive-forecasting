@@ -1,0 +1,679 @@
+{
+  "StartAt": "preprocessing step",
+  "States": {
+    "preprocessing step": {
+      "ResultPath": "$.PreProcessingStepResults",
+      "Resource": "arn:aws:states:::sagemaker:createProcessingJob.sync",
+      "Parameters": {
+        "ProcessingJobName.$": "$$.Execution.Input['ProcessingJobName']",
+        "ProcessingInputs": [
+          {
+            "InputName": "raw_input",
+            "S3Input": {
+              "S3Uri.$": "$$.Execution.Input['RawSourceFile']",
+              "LocalPath": "/opt/ml/processing/input",
+              "S3DataType": "S3Prefix",
+              "S3InputMode": "File",
+              "S3DataDistributionType": "FullyReplicated",
+              "S3CompressionType": "None"
+            }
+          },
+          {
+            "InputName": "code",
+            "S3Input": {
+              "S3Uri.$": "$$.Execution.Input['ProcessingCode']",
+              "LocalPath": "/opt/ml/processing/input/code",
+              "S3DataType": "S3Prefix",
+              "S3InputMode": "File",
+              "S3DataDistributionType": "FullyReplicated",
+              "S3CompressionType": "None"
+            }
+          }
+        ],
+        "ProcessingOutputConfig": {
+          "Outputs": [
+            {
+              "OutputName": "train_data",
+              "S3Output": {
+                "S3Uri.$": "$$.Execution.Input['ProcessingOutputTrain']",
+                "LocalPath": "/opt/ml/processing/train",
+                "S3UploadMode": "EndOfJob"
+              }
+            },
+            {
+              "OutputName": "test_data",
+              "S3Output": {
+                "S3Uri.$": "$$.Execution.Input['ProcessingOutputTest']",
+                "LocalPath": "/opt/ml/processing/test",
+                "S3UploadMode": "EndOfJob"
+              }
+            },
+            {
+              "OutputName": "scaler_data",
+              "S3Output": {
+                "S3Uri.$": "$$.Execution.Input['ProcessingOutputScaler']",
+                "LocalPath": "/opt/ml/processing/scaler",
+                "S3UploadMode": "EndOfJob"
+              }
+            },
+            {
+              "OutputName": "features_data",
+              "S3Output": {
+                "S3Uri.$": "$$.Execution.Input['ProcessingOutputFeatures']",
+                "LocalPath": "/opt/ml/processing/features",
+                "S3UploadMode": "EndOfJob"
+              }
+            },
+            {
+              "OutputName": "shap_data",
+              "S3Output": {
+                "S3Uri.$": "$$.Execution.Input['ProcessingOutputShap']",
+                "LocalPath": "/opt/ml/processing/shap",
+                "S3UploadMode": "EndOfJob"
+              }
+            }
+          ]
+        },
+        "AppSpecification": {
+          "ImageUri": "${PPimageURI}",
+          "ContainerArguments.$": "$$.Execution.Input['ProcessingContainerArguments']",
+          "ContainerEntrypoint": [
+            "python3",
+            "/opt/ml/processing/input/code/preprocessing.py"
+          ]
+        },
+        "RoleArn": "${SagemakerEASFExecutionRoleArn}",
+        "ProcessingResources": {
+          "ClusterConfig": {
+            "InstanceCount": 1,
+            "InstanceType.$": "$$.Execution.Input['TrainInstanceTypeDeepAR']",
+            "VolumeSizeInGB": 30
+          }
+        }
+      },
+      "Type": "Task",
+      "Next": "Training Flag",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.TaskFailed"
+          ],
+          "Next": "Pass Error Processing"
+        }
+      ]
+    },
+    "Training Flag": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$$.Execution.Input['TrainingFlag']",
+          "StringEquals": "True",
+          "Next": "Execute in parallel"
+        }
+      ],
+      "Default": "processing successful"
+    },
+    "processing successful": {
+      "Type": "Succeed"
+    },
+    "Execute in parallel": {
+      "Type": "Parallel",
+      "End": true,
+      "Branches": [
+        {
+          "StartAt": "DeepAR",
+          "States": {
+            "DeepAR": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$$.Execution.Input['HPOEnabled']",
+                  "StringEquals": "True",
+                  "Next": "Model Tuning"
+                }
+              ],
+              "Default": "Model Training"
+            },
+            "Model Training": {
+              "Resource": "arn:aws:states:::sagemaker:createTrainingJob.sync",
+              "Parameters": {
+                "AlgorithmSpecification": {
+                  "TrainingImage": "${DeepARimageURI}",
+                  "TrainingInputMode": "File"
+                },
+                "OutputDataConfig": {
+                  "S3OutputPath.$": "$$.Execution.Input['OutputPathDeepAR']"
+                },
+                "StoppingCondition": {
+                  "MaxRuntimeInSeconds": 86400
+                },
+                "ResourceConfig": {
+                  "InstanceCount.$": "$$.Execution.Input['TrainInstanceCount']",
+                  "InstanceType.$": "$$.Execution.Input['TrainInstanceTypeDeepAR']",
+                  "VolumeSizeInGB": 30
+                },
+                "RoleArn": "${SagemakerEASFExecutionRoleArn}",
+                "InputDataConfig": [
+                  {
+                    "DataSource": {
+                      "S3DataSource": {
+                        "S3DataType": "S3Prefix",
+                        "S3Uri.$": "$$.Execution.Input['TrainDataInputPathDeepAR']",
+                        "S3DataDistributionType": "FullyReplicated"
+                      }
+                    },
+                    "ChannelName": "train"
+                  },
+                  {
+                    "DataSource": {
+                      "S3DataSource": {
+                        "S3DataType": "S3Prefix",
+                        "S3Uri.$": "$$.Execution.Input['TestDataInputPathDeepAR']",
+                        "S3DataDistributionType": "FullyReplicated"
+                      }
+                    },
+                    "ChannelName": "test"
+                  }
+                ],
+                "HyperParameters": {
+                  "time_freq.$": "$$.Execution.Input['TimeseriesFreq']",
+                  "context_length.$": "$$.Execution.Input['ContextLenght']",
+                  "prediction_length.$": "$$.Execution.Input['PredictionLength']",
+                  "epochs.$": "$$.Execution.Input['EpochsDeepAR']",
+                  "num_cells.$": "$$.Execution.Input['NumCellsDeepAR']",
+                  "num_layers.$": "$$.Execution.Input['NumLayersDeepAR']",
+                  "learning_rate.$": "$$.Execution.Input['LearningRateDeepAR']",
+                  "dropout_rate.$": "$$.Execution.Input['DropoutRateDeepAR']",
+                  "embedding_dimension.$":"$$.Execution.Input['EmbeddingDimensionDeepAR']"
+                },
+                "TrainingJobName.$": "$$.Execution.Input['TrainingJobNameDeepAR']"
+              },
+              "Type": "Task",
+              "Next": "Save Model",
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "States.TaskFailed"
+                  ],
+                  "IntervalSeconds": 15,
+                  "MaxAttempts": 2,
+                  "BackoffRate": 4.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": [
+                    "States.TaskFailed"
+                  ],
+                  "Next": "PassError"
+                }
+              ]
+            },
+            "Save Model": {
+              "ResultPath": "$.ModelStepResults",
+              "Parameters": {
+                "ExecutionRoleArn": "${SagemakerEASFExecutionRoleArn}",
+                "ModelName.$": "$$.Execution.Input['ModelName']",
+                "PrimaryContainer": {
+                  "Environment": {},
+                  "Image": "${DeepARimageURI}",
+                  "ModelDataUrl.$": "$['ModelArtifacts']['S3ModelArtifacts']"
+                }
+              },
+              "Resource": "arn:aws:states:::sagemaker:createModel",
+              "Type": "Task",
+              "Next": "Query Training Results",
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "States.TaskFailed"
+                  ],
+                  "IntervalSeconds": 15,
+                  "MaxAttempts": 2,
+                  "BackoffRate": 4.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": [
+                    "States.TaskFailed"
+                  ],
+                  "Next": "PassError"
+                }
+              ]
+            },
+            "Query Training Results": {
+              "Parameters": {
+                "FunctionName": "${QueryTrainingStatusLambdaArn}",
+                "Payload": {
+                  "OutputPathDeepAR.$": "$$.Execution.Input['OutputPathDeepAR']",
+                  "RMSEthresholdDeepAR.$": "$$.Execution.Input['RMSEthresholdDeepAR']"
+                }
+              },
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Type": "Task",
+              "Next": "Check Accuracy",
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "States.TaskFailed"
+                  ],
+                  "IntervalSeconds": 15,
+                  "MaxAttempts": 2,
+                  "BackoffRate": 4.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": [
+                    "States.TaskFailed"
+                  ],
+                  "Next": "PassError"
+                }
+              ]
+            },
+            "Check Accuracy": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$['Payload']['PromotionFlag']",
+                  "StringEquals": "True",
+                  "Next": "Create Model Endpoint Config"
+                }
+              ],
+              "Default": "PassError"
+            },
+            "PassError": {
+              "Type": "Pass",
+              "Next": "Sns Publish"
+            },
+            "Sns Publish": {
+              "Parameters": {
+                "TopicArn": "${FailureNotificationTopicArn}",
+                "Message.$": "$"
+              },
+              "Resource": "arn:aws:states:::sns:publish",
+              "Type": "Task",
+              "Next": "TaskFailed"
+            },
+            "TaskFailed": {
+              "Type": "Fail"
+            },
+            "Create Model Endpoint Config": {
+              "Resource": "arn:aws:states:::sagemaker:createEndpointConfig",
+              "Parameters": {
+                "EndpointConfigName.$": "$$.Execution.Input['ModelName']",
+                "ProductionVariants": [
+                  {
+                    "InitialInstanceCount": 1,
+                    "InstanceType": "ml.m4.xlarge",
+                    "ModelName.$": "$$.Execution.Input['ModelName']",
+                    "VariantName": "AllTraffic"
+                  }
+                ]
+              },
+              "Type": "Task",
+              "Next": "Update Model Endpoint",
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "States.TaskFailed"
+                  ],
+                  "IntervalSeconds": 15,
+                  "MaxAttempts": 2,
+                  "BackoffRate": 4.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": [
+                    "States.TaskFailed"
+                  ],
+                  "Next": "PassError"
+                }
+              ]
+            },
+            "Update Model Endpoint": {
+              "Resource": "arn:aws:states:::sagemaker:createEndpoint",
+              "Parameters": {
+                "EndpointConfigName.$": "$$.Execution.Input['ModelName']",
+                "EndpointName.$": "$$.Execution.Input['EndpointName']"
+              },
+              "Type": "Task",
+              "End": true,
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "States.TaskFailed"
+                  ],
+                  "IntervalSeconds": 15,
+                  "MaxAttempts": 2,
+                  "BackoffRate": 4.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": [
+                    "States.TaskFailed"
+                  ],
+                  "Next": "PassError"
+                }
+              ]
+            },
+            "Model Tuning": {
+              "Resource": "arn:aws:states:::sagemaker:createHyperParameterTuningJob.sync",
+              "Parameters": {
+                "HyperParameterTuningJobName.$": "$$.Execution.Input['TuningJobName']",
+                "HyperParameterTuningJobConfig": {
+                  "Strategy": "Bayesian",
+                  "ResourceLimits": {
+                    "MaxNumberOfTrainingJobs.$": "$$.Execution.Input['MaxJobsHPODeepAR']",
+                    "MaxParallelTrainingJobs.$": "$$.Execution.Input['MaxParallelJobsHPODeepAR']"
+                  },
+                  "TrainingJobEarlyStoppingType": "Off",
+                  "HyperParameterTuningJobObjective": {
+                    "Type.$": "$$.Execution.Input['ObjectiveTypeDeepAR']",
+                    "MetricName.$": "$$.Execution.Input['ObjectiveMetricDeepAR']"
+                  },
+                  "ParameterRanges": {
+                    "ContinuousParameterRanges": [
+                      {
+                        "Name": "learning_rate",
+                        "ScalingType": "Auto",
+                        "MinValue.$": "$$.Execution.Input['LearningRateDeepAR_min']",
+                        "MaxValue.$": "$$.Execution.Input['LearningRateDeepAR_max']"
+                      }
+                    ],
+                    "CategoricalParameterRanges": [],
+                    "IntegerParameterRanges": [
+                      {
+                        "Name": "epochs",
+                        "ScalingType": "Auto",
+                        "MinValue.$": "$$.Execution.Input['EpochsDeepAR_min']",
+                        "MaxValue.$": "$$.Execution.Input['EpochsDeepAR_max']"
+                      },
+                      {
+                        "Name": "num_cells",
+                        "ScalingType": "Auto",
+                        "MinValue.$": "$$.Execution.Input['NumCellsDeepAR_min']",
+                        "MaxValue.$": "$$.Execution.Input['NumCellsDeepAR_max']"
+                      },
+                      {
+                        "Name": "num_layers",
+                        "ScalingType": "Auto",
+                        "MinValue.$": "$$.Execution.Input['NumLayersDeepAR_min']",
+                        "MaxValue.$": "$$.Execution.Input['NumLayersDeepAR_max']"
+                      },
+                      {
+                        "Name": "context_length",
+                        "ScalingType": "Auto",
+                        "MinValue.$": "$$.Execution.Input['ContextLenght_min']",
+                        "MaxValue.$": "$$.Execution.Input['ContextLenght_max']"
+                      }
+                    ]
+                  }
+                },
+                "TrainingJobDefinition": {
+                  "AlgorithmSpecification": {
+                    "TrainingImage": "${DeepARimageURI}",
+                    "TrainingInputMode": "File"
+                  },
+                  "OutputDataConfig": {
+                    "S3OutputPath.$": "$$.Execution.Input['OutputPathDeepAR']"
+                  },
+                  "StoppingCondition": {
+                    "MaxRuntimeInSeconds": 86400
+                  },
+                  "ResourceConfig": {
+                    "InstanceCount.$": "$$.Execution.Input['TrainInstanceCount']",
+                    "InstanceType.$": "$$.Execution.Input['TrainInstanceTypeDeepAR']",
+                    "VolumeSizeInGB": 30
+                  },
+                  "RoleArn": "${SagemakerEASFExecutionRoleArn}",
+                  "InputDataConfig": [
+                    {
+                      "DataSource": {
+                        "S3DataSource": {
+                          "S3DataType": "S3Prefix",
+                          "S3Uri.$": "$$.Execution.Input['TrainDataInputPathDeepAR']",
+                          "S3DataDistributionType": "FullyReplicated"
+                        }
+                      },
+                      "ChannelName": "train"
+                    },
+                    {
+                      "DataSource": {
+                        "S3DataSource": {
+                          "S3DataType": "S3Prefix",
+                          "S3Uri.$": "$$.Execution.Input['TestDataInputPathDeepAR']",
+                          "S3DataDistributionType": "FullyReplicated"
+                        }
+                      },
+                      "ChannelName": "test"
+                    }
+                  ],
+                  "StaticHyperParameters": {
+                    "time_freq": "$$.Execution.Input['TimeseriesFreq']",
+                    "prediction_length": "$$.Execution.Input['PredictionLength']",
+                    "dropout_rate": "$$.Execution.Input['DropoutRateDeepAR']"
+                  }
+                }
+              },
+              "Type": "Task",
+              "Next": "Get the best Model Arn",
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "States.TaskFailed"
+                  ],
+                  "IntervalSeconds": 15,
+                  "MaxAttempts": 2,
+                  "BackoffRate": 4.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": [
+                    "States.TaskFailed"
+                  ],
+                  "Next": "PassError"
+                }
+              ]
+            },
+            "Get the best Model Arn": {
+              "Parameters": {
+                "FunctionName": "${BestModelArnLambdaArn}",
+                "Payload": {
+                  "BestTrainingJobName.$": "$['BestTrainingJob']['TrainingJobName']",
+                  "OutputPathDeepAR.$": "$$.Execution.Input['OutputPathDeepAR']"
+                }
+              },
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Type": "Task",
+              "Next": "Save HPO Model",
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "States.TaskFailed"
+                  ],
+                  "IntervalSeconds": 15,
+                  "MaxAttempts": 2,
+                  "BackoffRate": 4.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": [
+                    "States.TaskFailed"
+                  ],
+                  "Next": "PassError"
+                }
+              ]
+            },
+            "Save HPO Model": {
+              "ResultPath": "$.ModelTunerStepResults",
+              "Parameters": {
+                "ExecutionRoleArn": "${SagemakerEASFExecutionRoleArn}",
+                "ModelName.$": "$$.Execution.Input['ModelName']",
+                "PrimaryContainer": {
+                  "Environment": {},
+                  "Image": "${DeepARimageURI}",
+                  "ModelDataUrl.$": "$['Payload']['bestmodelARN']"
+                }
+              },
+              "Resource": "arn:aws:states:::sagemaker:createModel",
+              "Type": "Task",
+              "Next": "Query Training Results",
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "States.TaskFailed"
+                  ],
+                  "IntervalSeconds": 15,
+                  "MaxAttempts": 2,
+                  "BackoffRate": 4.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": [
+                    "States.TaskFailed"
+                  ],
+                  "Next": "PassError"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "StartAt": "GluonTS Training",
+          "States": {
+            "GluonTS Training": {
+              "Resource": "arn:aws:states:::sagemaker:createTrainingJob.sync",
+              "Parameters": {
+                "AlgorithmSpecification": {
+                  "TrainingImage": "${MXNETimageURI}",
+                  "TrainingInputMode": "File"
+                },
+                "OutputDataConfig": {
+                  "S3OutputPath.$": "$$.Execution.Input['S3OutputPathGluonTS']"
+                },
+                "StoppingCondition": {
+                  "MaxRuntimeInSeconds": 86400
+                },
+                "ResourceConfig": {
+                  "InstanceCount": 1,
+                  "InstanceType": "ml.m5.4xlarge",
+                  "VolumeSizeInGB": 30
+                },
+                "RoleArn": "${SagemakerEASFExecutionRoleArn}",
+                "InputDataConfig": [
+                  {
+                    "DataSource": {
+                      "S3DataSource": {
+                        "S3DataType": "S3Prefix",
+                        "S3Uri.$": "$$.Execution.Input['TrainDataInputPathGluonTS']",
+                        "S3DataDistributionType": "FullyReplicated"
+                      }
+                    },
+                    "ChannelName": "train"
+                  },
+                  {
+                    "DataSource": {
+                      "S3DataSource": {
+                        "S3DataType": "S3Prefix",
+                        "S3Uri.$": "$$.Execution.Input['TestDataInputPathGluonTS']",
+                        "S3DataDistributionType": "FullyReplicated"
+                      }
+                    },
+                    "ChannelName": "test"
+                  }
+                ],
+                "HyperParameters": {
+                  "time_freq.$": "$$.Execution.Input['TimeseriesFreq']",
+                  "context_length.$": "$$.Execution.Input['ContextLenght']",
+                  "prediction_length.$": "$$.Execution.Input['PredictionLength']",
+                  "epochs.$": "$$.Execution.Input['EpochsDeepAR']",
+                  "num_cells.$": "$$.Execution.Input['NumCellsDeepAR']",
+                  "num_layers.$": "$$.Execution.Input['NumLayersDeepAR']",
+                  "learning_rate.$": "$$.Execution.Input['LearningRateDeepAR']",
+                  "dropout_rate.$": "$$.Execution.Input['DropoutRateDeepAR']",
+                  "sagemaker_submit_directory.$": "$$.Execution.Input['GluonTScodePath']",
+                  "sagemaker_program": "autoadaptive-demo-gluonts.py",
+                  "sagemaker_enable_cloudwatch_metrics": "true",
+                  "sagemaker_container_log_level": "20",
+                  "sagemaker_job_name.$": "$$.Execution.Input['TrainingJobNameGluonTS']"
+                },
+                "TrainingJobName.$": "$$.Execution.Input['TrainingJobNameGluonTS']",
+                "DebugHookConfig": {
+                  "S3OutputPath.$": "$$.Execution.Input['S3OutputPathGluonTSDebugger']",
+                  "CollectionConfigurations": [
+                    {
+                      "CollectionName": "all_tensors",
+                      "CollectionParameters": {
+                        "include_regex": ".*",
+                        "save_interval.$": "$$.Execution.Input['Save_intervalGluonTS']"
+                      }
+                    }
+                  ]
+                }
+              },
+              "Type": "Task",
+              "End": true,
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "States.TaskFailed"
+                  ],
+                  "IntervalSeconds": 15,
+                  "MaxAttempts": 2,
+                  "BackoffRate": 4.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": [
+                    "States.TaskFailed"
+                  ],
+                  "Next": "Pass Error GluonTS"
+                }
+              ]
+            },
+            "Pass Error GluonTS": {
+              "Type": "Pass",
+              "Next": "Sns GluonTS Publish"
+            },
+            "Sns GluonTS Publish": {
+              "Parameters": {
+                "TopicArn": "${FailureNotificationTopicArn}",
+                "Message.$": "$"
+              },
+              "Resource": "arn:aws:states:::sns:publish",
+              "Type": "Task",
+              "Next": "Task Failed GluonTS"
+            },
+            "Task Failed GluonTS": {
+              "Type": "Fail"
+            }
+          }
+        }
+      ]
+    },
+    "Pass Error Processing": {
+      "Type": "Pass",
+      "Next": "Sns Processing Publish"
+    },
+    "Sns Processing Publish": {
+      "Parameters": {
+        "TopicArn": "${FailureNotificationTopicArn}",
+        "Message.$": "$"
+      },
+      "Resource": "arn:aws:states:::sns:publish",
+      "Type": "Task",
+      "Next": "Task Failed Processing"
+    },
+    "Task Failed Processing": {
+      "Type": "Fail"
+    }
+  }
+}
