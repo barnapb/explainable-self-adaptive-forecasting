@@ -6,7 +6,8 @@
 # explainable-self-adaptive-forecasting
 > A tool for interpreting & unlocking the inner workings of time-series forecasting.
 
-<video src="/assets/EASF.mp4" width="640" height="360" controls preload></video>
+
+[![](http://img.youtube.com/vi/Yx6Kpkfvluk/0.jpg)](http://www.youtube.com/watch?v=Yx6Kpkfvluk "Explainable & Self-Adaptive Forecasting")
 
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](contributing.md)
 [![CodeBuild](https://s3-us-west-2.amazonaws.com/codefactory-us-west-2-prod-default-build-badges/passing.svg)](https://s3-us-west-2.amazonaws.com/codefactory-us-west-2-prod-default-build-badges/passing.svg)
@@ -162,7 +163,7 @@ For more details into how to prepare your dataset, please refer to the manual dc
 Once the app is launched , these fields can be populated accordingly within the Configuration Menu.
 
 <p align="center">
-  <img width="300" src="assets/example.png" />
+  <img width="417" height="177", src="assets/example.png" />
 </p>
 
 
