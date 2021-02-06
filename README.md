@@ -10,12 +10,9 @@
       </a>
 </div>
 
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](contributing.md)
-[![CodeBuild](https://s3-us-west-2.amazonaws.com/codefactory-us-west-2-prod-default-build-badges/passing.svg)](https://s3-us-west-2.amazonaws.com/codefactory-us-west-2-prod-default-build-badges/passing.svg)
-
 Current version: **1.0.0**
 
-Lead Maintainer: [Paul Barna](mailto:barnapb@amazon.com)
+Lead Maintainer: [Paul Barna](mailto:barnapb@amazon.co.uk)
 
 ## 📋 Table of content
 
