@@ -10,6 +10,9 @@
       </a>
 </div>
 
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](contributing.md)
+[![CodeBuild](https://s3-us-west-2.amazonaws.com/codefactory-us-west-2-prod-default-build-badges/passing.svg)](https://s3-us-west-2.amazonaws.com/codefactory-us-west-2-prod-default-build-badges/passing.svg)
+
 Current version: **1.0.0**
 
 Lead Maintainer: [Paul Barna](mailto:barnapb@amazon.co.uk)
@@ -25,19 +28,12 @@ Lead Maintainer: [Paul Barna](mailto:barnapb@amazon.co.uk)
 
 ## 🚀 Install
 
-In order to add this block, head to your project directory in your terminal and add it using NPM.
-
-```bash
-npm install @aws-blocks/explainable-self-adaptive-forecasting-tool
-```
-
 > ⚠️ You need to have the [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html) installed on your deployment machine before installing this package with version >= **2.1.16**, [DOCKER](https://docs.docker.com/engine/install/) version >= **20.10.0** and [PIP](https://pip.pypa.io/en/stable/installing/) >= **20.3.3**.
 
-The `explainable-self-adaptive-forecasting` project will be available in the `node_modules/@aws-blocks` directory. 
 
 ## 📊 Metrics
 
-The below metrics displays approximate values associated with deploying and using this block.
+The below metrics display approximate values associated with deploying and using this block.
 
 Metric | Value
 ------ | ------
