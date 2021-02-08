@@ -38,7 +38,7 @@ The below metrics display approximate values associated with deploying and using
 Metric | Value
 ------ | ------
 **Type** | Solution
-**Installation Time** | ~ 30 minutes (due too the additional time required to execute a full docker pipeline run ~15min)
+**Installation Time** | ~ 15 minutes Docker Pipeline Stack + ~ 15 minutes Tool Stack
 **Audience** | Applied Scientists, Research Scientists, Data Scientists, ML Scientists, ML Specialists
 **Requirements** | [aws-sam](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html), [Docker](https://docs.docker.com/engine/install/)
 
