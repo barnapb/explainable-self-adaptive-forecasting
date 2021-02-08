@@ -33,12 +33,10 @@ Lead Maintainer: [Paul Barna](mailto:barnapb@amazon.co.uk)
 
 ## 📊 Metrics
 
-The below metrics display approximate values associated with deploying and using this block.
-
 Metric | Value
 ------ | ------
 **Type** | Solution
-**Installation Time** |Docker Pipeline Stack ~ 20 minutes (incl. the pipline exexution), Tool Stack ~ 15 minutes
+**Installation Time** |Docker Pipeline Stack ~ 20 minutes (incl. the pipline execution), Tool Stack ~ 15 minutes
 **Audience** | Applied Scientists, Research Scientists, Data Scientists, ML Scientists, ML Specialists
 **Requirements** | [aws-sam](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html), [Docker](https://docs.docker.com/engine/install/)
 
