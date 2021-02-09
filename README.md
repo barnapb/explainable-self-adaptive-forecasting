@@ -33,7 +33,7 @@ Lead Maintainer: [Paul Barna](mailto:barnapb@amazon.co.uk)
 Metric | Value
 ------ | ------
 **Type** | Solution
-**Installation Time** |Docker Pipeline Stack ~ 20 minutes (incl. the pipline execution), Tool Stack ~ 15 minutes
+**Installation Time** |Docker Pipeline Stack ~ 20 minutes (incl. the pipeline execution), Tool Stack ~ 15 minutes
 **Audience** | Applied Scientists, Research Scientists, Data Scientists, ML Scientists, ML Specialists
 **Requirements** | [aws-sam](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html), [Docker](https://docs.docker.com/engine/install/)
 
@@ -106,7 +106,7 @@ Once successfully executed, deploy the app stack, which will create both the bac
 ```sh
 npm run deploy --stack_name=<stack_name> --ecr_repository=<ecr_repository> --dashboard_ecr_repository=<dashboard_ecr_repository> --region=<region> --bucket_backend=<bucket_backend> --dashboard_name=<dashboard_name> --email=<email>
 ```
-Upon completion of the deploymnet script, a mail should have been received with a link to the ECS hosted app, alongside the initial credentials.
+Upon completion of the deployment script, a mail should have been received with a link to the ECS hosted app, alongside the initial credentials.
 Next step, spin up the ECS tasks with the following command:
 
 ```sh
@@ -151,7 +151,7 @@ You can find an example dataset `Air_Pollution_in_Seoul.csv`. It can be used to 
   <img width="417" height="177", src="assets/example.png" />
 </p>
 
-The dataset has the followng structure:
+The dataset has the following structure:
 
 **Time Stamp Column** | **Pivot Colum** | **Feature Columns**
 
