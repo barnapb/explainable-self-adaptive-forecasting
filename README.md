@@ -155,7 +155,7 @@ The dataset has the followng structure:
 
 **Time Stamp Column** | **Pivot Colum** | **Feature Columns**
 
-For more details into how to prepare your dataset, please refer to the `Manual` dcoumentation.
+For more details into how to prepare your dataset, please refer to the `Manual` documentation.
 Once the app is launched , these fields can be populated accordingly within the Configuration Menu.
 
 ## 👀 See also
