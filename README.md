@@ -25,7 +25,22 @@ Lead Maintainer: [Paul Barna](mailto:barnapb@amazon.co.uk)
 
 ## 🚀 Install
 
-> ⚠️ You need to have the [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html) installed on your deployment machine before installing this package with version >= **2.1.16**, [DOCKER](https://docs.docker.com/engine/install/) version >= **20.10.0** and [PIP](https://pip.pypa.io/en/stable/installing/) >= **20.3.3**.
+> 
+```sh
+# Install NVM.
+curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.35.3/install.sh | bash
+# Install the latest LTS version of Node.js.
+nvm install --lts
+# Set this version as default.
+nvm use --lts
+# Verify that Node.js is correctly installed.
+node -v
+```
+
+> ⚠️ Additionally, you need to have the following installed on your deployment machine before installing this package:
+[AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html) version >= **2.1.16**;
+[DOCKER](https://docs.docker.com/engine/install/) version >= **20.10.0**;
+[PIP](https://pip.pypa.io/en/stable/installing/) version >= **20.3.3**
 
 
 ## 📊 Metrics
